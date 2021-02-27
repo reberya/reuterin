@@ -1,0 +1,119 @@
+---
+title: "1_prepareForCytoscape"
+author: "Ryan Rebernick"
+date: "2/26/2021"
+output: html_document
+---
+
+# 1. Load packages
+```{r, warning=F, message=F}
+
+library('plyr')
+library('dplyr')
+library('magrittr')
+library('data.table')
+
+#BiocManager::install("biomaRt")
+library('biomaRt')
+
+```
+
+```{r}
+
+```
+
+
+# 2. Prepare Metabolite data
+```{r}
+
+#  Load metabridge data
+kegg <- fread('~/Desktop/reuterin/int/metabolites_SwHctSig_HMDB_metaboAnalyst_5.0_mapped_KEGG.tsv')
+met <- fread('~/Desktop/reuterin/int/metabolites_SwHctSig_HMDB_metaboAnalyst_5.0_mapped_MetaCyc.tsv')
+
+# Prepare for merging
+kegg$cg <- paste0(kegg$HMDB, '-', kegg$`Gene Name`)
+met$cg <- paste0(met$HMDB, '-', met$`Gene Name`)
+
+# Merge data frames
+metabridge <- merge(kegg, met, by= 'cg')
+
+# select values needed
+metabridge$interaction <- 'mg'
+metabridge %<>% dplyr::select(Compound.x, interaction, `Gene Name.y`, KEGG.x:`Enzyme Name`, Reaction:`MetaCyc Gene`, Ensembl)
+colnames(metabridge) <- c('compound', 'interaction', 'gene', 'KEGG', 'HMDB', 'Enzyme', 'enzyme_name', 'rxn', 'rxn_name', 'metaCyc_gene', 'ensembl')
+
+# shorten for export to cytoscape
+export <- metabridge %>% select(compound:gene, ensembl) %>% unique()
+
+# save info keeping only unique nodes
+write.table(metabridge %>% select(compound:gene, ensembl) %>% unique(), '~/Desktop/reuterin/int/metabolite-gene.txt', sep = '\t', quote = F, row.names = F)
+
+```
+
+# Add Proteomics data
+```{r}
+
+# load and rename cols
+prot <- fread('~/Desktop/reuterin/data/UMichigan_Hannah_HCT_Cys_SLC-ABPP.txt', data.table = F)
+colnames(prot)[28:32] <- c('cr5', 'cr25', 'cr50', 'cr100', 'gene-site')
+
+# Correct excel's goofy date switches
+prot$gene_symbol <- ifelse(prot$gene_symbol == '10-Sep', 'SEP10', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '9-Sep', 'SEPT9', prot$gene_symbol)
+
+# Find values 3 SD above the mean of all CR values as cutoff
+v <- mean(unlist(prot[,28:31])) + 3*(sd(unlist(prot[,28:31])))
+
+# Filter for significant proteins
+prot$cpmax <- apply(prot[, 28:31], 1, max)
+prot %<>% dplyr::filter(cr5 > v | cr25 > v | cr50 > v | cr100 > v)
+
+# Select cols of interest
+prot %<>% dplyr::select(gene_symbol, cpmax)
+colnames(prot) <- c('gene', 'cpmax')
+
+# take only highest cp value for each gene
+prot %<>%
+    group_by(gene) %>%
+    summarise(cpmax= max(cpmax))
+
+# combine with metabolite data
+export <- merge(export, prot, all.x = T, by = 'gene')
+
+
+```
+
+
+# 3. Add Gene Expression 
+```{r}
+
+# load rna
+rna <- fread('~/Desktop/reuterin/data/ReutvsCtrl.txt')
+
+# get DEGs and select needed cols
+rna %<>% dplyr::filter(FDR < 0.05) %>%
+  dplyr::select(genes, logFC)
+
+# select cols
+colnames(rna) <- c('gene', 'logFC')
+
+
+```
+
+# Convert Human metabolite/cysteiene proteomics to mouse 
+```{r}
+
+require("biomaRt")
+human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+
+genesV2 = getLDS(attributes = c("hgnc_symbol"), filters = "hgnc_symbol", values = x , mart = human, attributesL = c("mgi_symbol"), martL = mouse, uniqueRows=T)
+
+humanx <- unique(genesV2[, 2])
+
+```
+
+
+
+
+
