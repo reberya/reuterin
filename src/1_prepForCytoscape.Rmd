@@ -15,20 +15,24 @@ library('data.table')
 
 #BiocManager::install("biomaRt")
 library('biomaRt')
-
-```
-
-```{r}
+library('ggplot2')
+library('scales')
 
 ```
 
 
 # 2. Prepare Metabolite data
+Input data was obtained through the following process:
+- Took list of metabolites shown to be changed following treatment with lactobacillus reuteri in SW480 and HCT cells
+- Converted the common names of these metabolites to HMDB files using the GUI version of metaboanalyst v5.0 (https://www.metaboanalyst.ca/faces/upload/ConvertView.xhtml). This was done via GUI because a fair number of the compounds were not directly identified and had to be selected from a list of suspected matches.
+- Once these HMDB ids were obtained, MetaBridge v1.2 (https://www.metabridge.org/) was used to get lists of genes associated with each compound - these were mapped using KEGG and MetaCyc. Both values were taken (see below)
+
+The below code combines the kegg and metacyc hits for the HCT and SW cell lines, selecting for variables needed.
 ```{r}
 
 #  Load metabridge data
-kegg <- fread('~/Desktop/reuterin/int/metabolites_SwHctSig_HMDB_metaboAnalyst_5.0_mapped_KEGG.tsv')
-met <- fread('~/Desktop/reuterin/int/metabolites_SwHctSig_HMDB_metaboAnalyst_5.0_mapped_MetaCyc.tsv')
+kegg <- fread('~/Desktop/projects/reuterin/int/metabolites_SwHctSig_HMDB_metaboAnalyst_5.0_mapped_KEGG.tsv', data.table = F)
+met <- fread('~/Desktop/projects/reuterin/int/metabolites_SwHctSig_HMDB_metaboAnalyst_5.0_mapped_MetaCyc.tsv', data.table = F)
 
 # Prepare for merging
 kegg$cg <- paste0(kegg$HMDB, '-', kegg$`Gene Name`)
@@ -43,18 +47,16 @@ metabridge %<>% dplyr::select(Compound.x, interaction, `Gene Name.y`, KEGG.x:`En
 colnames(metabridge) <- c('compound', 'interaction', 'gene', 'KEGG', 'HMDB', 'Enzyme', 'enzyme_name', 'rxn', 'rxn_name', 'metaCyc_gene', 'ensembl')
 
 # shorten for export to cytoscape
-export <- metabridge %>% select(compound:gene, ensembl) %>% unique()
-
-# save info keeping only unique nodes
-write.table(metabridge %>% select(compound:gene, ensembl) %>% unique(), '~/Desktop/reuterin/int/metabolite-gene.txt', sep = '\t', quote = F, row.names = F)
+export <- metabridge %>% dplyr::select(compound:gene) %>% unique()
 
 ```
 
-# Add Proteomics data
+# 3. Add Proteomics data
+Cysteine proteomics data was done at the Univeristy of michigan to look at cysteines preferentially bound by reuterin. The lab recommended a cutoff of 2, but as this yielded only 3 compounds instead a value of >Mean + 3SD in any of the cr values. My understanding is the CR values are basically a ratio comparing reuterin and a random compound. The higher the ratio the more reuterin binds that cysteine site.  
 ```{r}
 
 # load and rename cols
-prot <- fread('~/Desktop/reuterin/data/UMichigan_Hannah_HCT_Cys_SLC-ABPP.txt', data.table = F)
+prot <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_Cys_SLC-ABPP.txt', data.table = F)
 colnames(prot)[28:32] <- c('cr5', 'cr25', 'cr50', 'cr100', 'gene-site')
 
 # Correct excel's goofy date switches
@@ -80,40 +82,131 @@ prot %<>%
 # combine with metabolite data
 export <- merge(export, prot, all.x = T, by = 'gene')
 
+# Add boolean proteomiccs value
+export$cpBoolean <- ifelse(is.na(export$cpmax), F, T)
+
 
 ```
 
 
-# 3. Add Gene Expression 
+# 4. Convert Human metabolite/cysteiene proteomics to mouse 
+RNA-seq was done in mouse, while the proteomics and metabolomics were done in human cell lines. 
+```{r}
+require("biomaRt")
+
+# access biomart 
+human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+
+# convert human common -> human ensembl -> mouse mgi
+genes = getLDS(attributes = c("hgnc_symbol"), filters = "hgnc_symbol", values = export$gene , mart = human, attributesL = c("ensembl_gene_id"), martL = human, uniqueRows=T)
+colnames(genes) <- c('gene', 'ensembl')
+genes2 = getLDS(attributes = c("ensembl_gene_id"), filters = "ensembl_gene_id", values = genes$ensembl , mart = human, attributesL = c("mgi_symbol"), martL = mouse, uniqueRows=T)
+colnames(genes2) <- c('ensembl', 'mgi')
+
+# choose single mgi id when returned 1+ for multiple human ensebml ids. Already optimally ordered for duplicate removal
+t <- merge(genes, genes2, all.x = T, by = 'ensembl')
+t <- t[!duplicated(t$gene),]
+
+# merge new mouse gene names with pertinent metabolite/proteomics data and select cols
+export <- merge(export, t, all.x = T, by='gene')
+export %<>% dplyr::select(compound, interaction, mgi, cpmax, cpBoolean) %>% unique()
+
+```
+
+
+# 5. Add Gene Expression 
+Add in RNA-seq data and export file for use with cytoscape. This export contains all the nodes but ones following will subset based on interesting compounds.
 ```{r}
 
 # load rna
-rna <- fread('~/Desktop/reuterin/data/ReutvsCtrl.txt')
+rna <- fread('~/Desktop/projects/reuterin/data/ReutvsCtrl.txt')
 
 # get DEGs and select needed cols
 rna %<>% dplyr::filter(FDR < 0.05) %>%
   dplyr::select(genes, logFC)
 
 # select cols
-colnames(rna) <- c('gene', 'logFC')
+colnames(rna) <- c('mgi', 'logFC')
+
+# merge data frames and order cols
+export <- merge(export, rna, all.x = T, by= 'mgi')
+
+# Add differentially expressed column
+export$de <- 100
+export$de <- ifelse(export$logFC > 0, 1, export$de)
+export$de <- ifelse(export$logFC < 0, -1, export$de)
+export$de <- ifelse(is.na(export$logFC), 0, export$de)
+
+# select desired cols
+export %<>% dplyr::select(compound, interaction, mgi, cpmax, cpBoolean, logFC, de)
+
+# Add source target info
+export$source <- T
+export$target <- T
+
+# save info keeping only unique nodes
+write.table(export, '~/Desktop/projects/reuterin/int/metabolite-gene.txt', sep = '\t', quote = F, row.names = F)
 
 
 ```
 
-# Convert Human metabolite/cysteiene proteomics to mouse 
+# 6. Barplot of metabolite hits
+Use this barplot to justify why the network was further narrowed down. Will show the number of DE genes as well as those with cysteine proteomics hits. 
+```{r, fig.height=6, fig.width=5}
+
+# create seperate data frame
+plot <- export
+
+# determine whether this gene-compound interaction has a DE gene
+plot$total <- ifelse(plot$de != 0, 1, 0)
+
+# Prepare for plotting
+plot <- plot %>% 
+  ##for each compound
+  group_by(compound) %>% 
+  ## get number of total genes associated
+  mutate(numGenes = sum(total)) %>%
+  ##calculate the proportion of the total genes DE
+  mutate(proportion = sum(total)/length(compound)) %>%
+  ##create a T/F value if gene is a cysteine proteomics hit
+  mutate(cp = sum(cpBoolean)>0) %>%
+  ##select cols and get unique vals
+  dplyr::select(compound, numGenes, proportion, cp) %>%
+  unique() %>%
+  # arrange by number of genes and make factor for plotting
+  arrange(numGenes) %>%
+  mutate(compound = factor(compound, levels = .$compound)) 
+  
+# Plot dotplot
+ggplot(plot, aes(numGenes, compound)) +
+  geom_point(aes(size=proportion, col=cp)) +
+  scale_color_manual(values=c("grey", "#00A08A")) +
+  ggtitle("Metabolite + Gene Exp + Cysteine Proteomics") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(size="Proportion", colour= "CP hit")
+
+
+  
+
+```
+# 7. Subset cytoscape export for only top hits
+Choosing those with top # DE genes or any with a cysteine proteomics hit
 ```{r}
 
-require("biomaRt")
-human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+# keep the top x compounds and those with cystine proteomics hits
+plot %<>% arrange(-numGenes)
+## pull compund names
+keep <- c(as.character(plot$compound[1:4]), as.character(plot[plot$cp >0,]$compound))
+## get compounds of interest and select only the genes that have proteomics hit or are DE
+export.sub <- export %>%
+  dplyr::filter(compound %in% keep) %>%
+  dplyr::filter(de != 0 | cpBoolean ==T)
 
-genesV2 = getLDS(attributes = c("hgnc_symbol"), filters = "hgnc_symbol", values = x , mart = human, attributesL = c("mgi_symbol"), martL = mouse, uniqueRows=T)
+# save info keeping only unique nodes
+write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset.txt', sep = '\t', quote = F, row.names = F)
 
-humanx <- unique(genesV2[, 2])
 
 ```
-
-
-
 
 
