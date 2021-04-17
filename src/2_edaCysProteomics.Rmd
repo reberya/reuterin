@@ -273,6 +273,77 @@ Heatmap(toPlot,
 
 ```
 
+# Make heatmap of top 100 100um reuterin hits
+
+```{r}
+
+## experiment 2
+p2 <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_DMF_Reut_Cys_SLC-ABPP.txt', data.table = F)
+
+# select needed cols
+cyst <- p2[,c(2,6,23,31, 10:21)]
+colnames(cyst)[1:3] <- c('gene', 'gene_site', 'avg_cntrl', 'cr_Reut_100')
+
+# Change zero values to matrix min
+sub <- as.matrix(cyst[,5:16])
+vals <- unlist(sub)
+vals <- vals[vals > 0]
+sub[sub < 0.1] <- min(vals)
+cyst[,5:16] <- sub
+
+# There are duplicate measurements of gene_sites. To remove dups, determine the maximum sd from all groups and select the duplciate with the lowest maximum sd.
+## compute group SDs
+cyst %<>% 
+  mutate(DMF_25uM_sd = rowSds(as.matrix(cyst[,5:7]))) %>% 
+  mutate(DMF_100uM_sd = rowSds(as.matrix(cyst[,8:10]))) %>% 
+  mutate(Reut_50uM_sd = rowSds(as.matrix(cyst[,11:13]))) %>% 
+  mutate(Reut_100uM_sd = rowSds(as.matrix(cyst[,14:16])))
+## select max sd and arrange by max sd
+cyst %<>%
+  mutate(maxsd = rowMaxs(as.matrix(cyst[,17:20]))) %>%
+  arrange(maxsd) %>%
+  dplyr::select(gene:Reut_100uM_3)
+## remove duplicates based on sd ordering
+cyst <- cyst[!duplicated(cyst$gene_site),]
+
+# Compute CRs for each replicate
+cyst[,5:16] <- cyst$avg_cntrl/cyst[,5:16]
+
+# Select top 100 gene_sites
+cyst %<>% arrange(-`CR 100 Reut`)
+values <- cyst[1:100, 5:16]
+
+# Scale
+# temp<- colnames(values)
+# values %<>% apply(., MARGIN = 1, FUN=scale) %>%
+#   t() %>%
+#   set_colnames(temp)
+
+
+col_fun = colorRamp2(c( 0, 2.5, 5), c("white", 'orange', "red"))
+
+Heatmap(values,
+        col = col_fun,
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = T,
+        cluster_columns = F,
+        row_km_repeats = 100,
+        # column_order = 1:15,
+        column_split = factor(
+          rep(c('25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin'), each=3),
+          levels = c('25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin')),
+        width = unit(6, "cm"),
+        height = unit(7, "cm"),
+        column_title_gp = gpar(fontsize=6),
+        column_title_rot = 90,
+        heatmap_legend_param = list(title = "CR")
+        )
+
+
+```
 
 
 
