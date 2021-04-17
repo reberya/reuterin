@@ -5,7 +5,7 @@ date: "2/26/2021"
 output: html_document
 ---
 
-# 1. Load packages
+# Load packages
 ```{r, warning=F, message=F}
 
 library('plyr')
@@ -17,11 +17,13 @@ library('data.table')
 library('biomaRt')
 library('ggplot2')
 library('scales')
+library(cowplot)
 
 ```
 
 
-# 2. Prepare Metabolite data
+
+# Prepare Metabolite data
 Input data was obtained through the following process:
 - Took list of metabolites shown to be changed following treatment with lactobacillus reuteri in SW480 and HCT cells
 - Converted the common names of these metabolites to HMDB files using the GUI version of metaboanalyst v5.0 (https://www.metaboanalyst.ca/faces/upload/ConvertView.xhtml). This was done via GUI because a fair number of the compounds were not directly identified and had to be selected from a list of suspected matches.
@@ -51,45 +53,111 @@ export <- metabridge %>% dplyr::select(compound:gene) %>% unique()
 
 ```
 
-# 3. Add Proteomics data
-Cysteine proteomics data was done at the Univeristy of michigan to look at cysteines preferentially bound by reuterin. The lab recommended a cutoff of 2, but as this yielded only 3 compounds instead a value of >Mean + 3SD in any of the cr values. My understanding is the CR values are basically a ratio comparing reuterin and a random compound. The higher the ratio the more reuterin binds that cysteine site.  
+
+
+# Add Proteomics data
+Cysteine proteomics data was done at the Broad to look at cysteines preferentially bound by reuterin. The lab recommended a cutoff of 2, but as this yielded only 3 compounds instead a value of >Mean + 3SD in any of the cr values. My understanding is the CR values are basically a ratio comparing reuterin and a random compound. The higher the ratio the more reuterin binds that cysteine site.  
+
+### Initial Cysteine proteomics analysis 
+Filter for CR ratios in reuterin > Mean+3SD. From there if multiple cystieines are significant for each gene, take the highest cpmax value for each protein. This will be combined with the subsequent cysteine proteomics analysis d/t the high variability in protein capture between experiments. 
 ```{r}
 
 # load and rename cols
 prot <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_Cys_SLC-ABPP.txt', data.table = F)
-colnames(prot)[28:32] <- c('cr5', 'cr25', 'cr50', 'cr100', 'gene-site')
+colnames(prot)[28:32] <- c('cr_acro_5', 'cr_acro_25', 'cr_reuterin_50', 'cr_reuterin_100', 'gene-site')
 
 # Correct excel's goofy date switches
 prot$gene_symbol <- ifelse(prot$gene_symbol == '10-Sep', 'SEP10', prot$gene_symbol)
 prot$gene_symbol <- ifelse(prot$gene_symbol == '9-Sep', 'SEPT9', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '11-Sep', 'SEP11', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '2-Sep', 'SEPT2', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '5-Sep', 'SEPT5', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '7-Sep', 'SEPT7', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '8-Sep', 'SEPT8', prot$gene_symbol)
+
+prot$gene_symbol <- ifelse(prot$gene_symbol == '2-Mar', 'MOSC2', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '5-Mar', 'MARH5', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '7-Mar', 'MARH7', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '6-Mar', 'MARH6', prot$gene_symbol)
 
 # Find values 3 SD above the mean of all CR values as cutoff
-v <- mean(unlist(prot[,28:31])) + 3*(sd(unlist(prot[,28:31])))
+v <- mean(unlist(prot[,30:31])) + 3*(sd(unlist(prot[,30:31])))
 
 # Filter for significant proteins
-prot$cpmax <- apply(prot[, 28:31], 1, max)
-prot %<>% dplyr::filter(cr5 > v | cr25 > v | cr50 > v | cr100 > v)
+prot$crmax <- apply(prot[, 30:31], 1, max)
+prot %<>% dplyr::filter(cr_reuterin_50 > v | cr_reuterin_100 > v)
 
 # Select cols of interest
-prot %<>% dplyr::select(gene_symbol, cpmax)
-colnames(prot) <- c('gene', 'cpmax')
+prot %<>% dplyr::select(gene_symbol, crmax)
+colnames(prot) <- c('gene', 'crmax')
 
 # take only highest cp value for each gene
 prot %<>%
     group_by(gene) %>%
-    summarise(cpmax= max(cpmax))
+    summarise(crmax= max(crmax))
+
+hold <- prot
+
+```
+
+### Add subsequent proteomics data
+Analysis carried out in same method as the first analysis using mean+3SD cutoff. Ultimately if a gene is significant in either the initial or subsequent proteoimcs analysis it is counted as a hit. Only the highest CRmax value is taken for each gene. 
+```{r}
+
+# load and rename cols
+prot <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_DMF_Reut_Cys_SLC-ABPP.txt', data.table = F)
+colnames(prot)[c(2,28:32)] <- c('gene_symbol', 'cr_dmf_25', 'cr_dmf_100', 'cr_reuterin_50', 'cr_reuterin_100', 'gene_site')
+
+# Correct excel's goofy date switches
+prot$gene_symbol <- ifelse(prot$gene_symbol == '10-Sep', 'SEP10', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '9-Sep', 'SEPT9', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '11-Sep', 'SEP11', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '2-Sep', 'SEPT2', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '5-Sep', 'SEPT5', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '7-Sep', 'SEPT7', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '8-Sep', 'SEPT8', prot$gene_symbol)
+
+prot$gene_symbol <- ifelse(prot$gene_symbol == '2-Mar', 'MOSC2', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '5-Mar', 'MARH5', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '7-Mar', 'MARH7', prot$gene_symbol)
+prot$gene_symbol <- ifelse(prot$gene_symbol == '6-Mar', 'MARH6', prot$gene_symbol)
+
+# Find values 3 SD above the mean of all CR values as cutoff
+v <- mean(unlist(prot[,30:31])) + 3*(sd(unlist(prot[,30:31])))
+
+# Filter for significant proteins
+prot$crmax <- apply(prot[, 30:31], 1, max)
+prot %<>% dplyr::filter(cr_reuterin_50 > v | cr_reuterin_100 > v)
+
+# Select cols of interest
+prot %<>% dplyr::select(gene_symbol, crmax)
+colnames(prot) <- c('gene', 'crmax')
+
+# take only highest cp value for each gene
+prot %<>%
+    group_by(gene) %>%
+    summarise(crmax= max(crmax))
+
+# combine new cysteine proteomics with old
+prot <- rbind(hold, prot)
+
+# take only highest cp value for each gene
+prot %<>%
+    group_by(gene) %>%
+    summarise(crmax= max(crmax))
 
 # combine with metabolite data
 export <- merge(export, prot, all.x = T, by = 'gene')
 
 # Add boolean proteomiccs value
-export$cpBoolean <- ifelse(is.na(export$cpmax), F, T)
+export$cpBoolean <- ifelse(is.na(export$crmax), F, T)
 
 
 ```
 
 
-# 4. Convert Human metabolite/cysteiene proteomics to mouse 
+
+# Convert Human metabolite/cysteiene proteomics to mouse 
 RNA-seq was done in mouse, while the proteomics and metabolomics were done in human cell lines. 
 ```{r}
 require("biomaRt")
@@ -110,12 +178,13 @@ t <- t[!duplicated(t$gene),]
 
 # merge new mouse gene names with pertinent metabolite/proteomics data and select cols
 export <- merge(export, t, all.x = T, by='gene')
-export %<>% dplyr::select(compound, interaction, mgi, cpmax, cpBoolean) %>% unique()
+export %<>% dplyr::select(compound, interaction, mgi, crmax, cpBoolean) %>% unique()
 
 ```
 
 
-# 5. Add Gene Expression 
+
+# Add Gene Expression 
 Add in RNA-seq data and export file for use with cytoscape. This export contains all the nodes but ones following will subset based on interesting compounds.
 ```{r}
 
@@ -139,11 +208,17 @@ export$de <- ifelse(export$logFC < 0, -1, export$de)
 export$de <- ifelse(is.na(export$logFC), 0, export$de)
 
 # select desired cols
-export %<>% dplyr::select(compound, interaction, mgi, cpmax, cpBoolean, logFC, de)
+export %<>% dplyr::select(compound, interaction, mgi, crmax, cpBoolean, logFC, de)
 
 # Add source target info
 export$source <- T
 export$target <- T
+
+# Rename compounds for cytoscape viewing
+export %<>%
+  mutate(compound = ifelse(compound == 'OXIDIZED GLUATHIONE', 'GSSG', compound)) %>%
+  mutate(compound = ifelse(compound == 'PHOSPHO-ENOL-PYRUVATE', 'PEP', compound)) %>%
+  
 
 # save info keeping only unique nodes
 write.table(export, '~/Desktop/projects/reuterin/int/metabolite-gene.txt', sep = '\t', quote = F, row.names = F)
@@ -151,7 +226,8 @@ write.table(export, '~/Desktop/projects/reuterin/int/metabolite-gene.txt', sep =
 
 ```
 
-# 6. Barplot of metabolite hits
+
+# Barplot of metabolite hits
 Use this barplot to justify why the network was further narrowed down. Will show the number of DE genes as well as those with cysteine proteomics hits. 
 ```{r, fig.height=6, fig.width=5}
 
@@ -176,21 +252,32 @@ plot <- plot %>%
   unique() %>%
   # arrange by number of genes and make factor for plotting
   arrange(numGenes) %>%
-  mutate(compound = factor(compound, levels = .$compound)) 
+  mutate(compound = factor(compound, levels = .$compound)) %>%
+  ## remove comounds with too few genes
+  filter(numGenes > 0)
   
 # Plot dotplot
-ggplot(plot, aes(numGenes, compound)) +
+
+g <- ggplot(plot, aes(numGenes, compound)) +
   geom_point(aes(size=proportion, col=cp)) +
   scale_color_manual(values=c("grey", "#00A08A")) +
-  ggtitle("Metabolite + Gene Exp + Cysteine Proteomics") +
+  ggtitle(NULL) +
   theme(plot.title = element_text(hjust = 0.5)) +
-  labs(size="Proportion", colour= "CP hit")
+  labs(size="Proportion", colour= "CP hit") + 
+  ylab(NULL) +
+  xlab(NULL) +
+  theme_minimal_grid(12)
+g
 
+pdf('~/Desktop/projects/reuterin/int/omicsIntegration_dotplot.pdf', height = 4, width = 5)
+g
+dev.off()
 
   
 
 ```
-# 7. Subset cytoscape export for only top hits
+
+# Subset cytoscape export for only top hits
 Choosing those with top # DE genes or any with a cysteine proteomics hit
 ```{r}
 
