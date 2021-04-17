@@ -1,0 +1,149 @@
+---
+title: "eda_proteomics"
+author: "Ryan Rebernick"
+date: "4/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Description:
+
+# Load packages
+```{r, message=FALSE, warning=FALSE}
+library('plyr')
+library('dplyr')
+library('magrittr')
+library('data.table')
+
+library(limma)
+library(ComplexHeatmap)
+
+```
+
+# Load data
+```{r}
+
+p <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_proteome_protein_quant.txt', data.table = F)
+
+
+```
+
+# Prepare proteomics data for plotting
+
+## Calculate p values, padj, and logfc
+#### Prepare data for Limma
+```{r}
+
+# Prepare data for limma
+temp <- colnames(p)[5:19]
+p.limma <- p %>% 
+  ## set rownames
+  set_rownames(p$`Uniprot ID`) %>%
+  ## select numeric values
+  dplyr::select(Control_1:Reut_100uM_3) %>%
+  ## log 10
+  log10() %>%
+  ## Z scores
+  apply(., 1, scale) %>%
+  ## clean df
+  t() %>%
+  as.data.frame() %>%
+  set_colnames(temp)
+
+# Check distribution normal
+hist(unlist(p.limma))
+
+```
+
+#### Analyze log10/scaled data in limma
+```{r}
+
+# Create design table
+design <- as.data.frame(c(rep(1,3), rep(0,12)))
+rownames(design) <- colnames(p.limma)
+colnames(design) <- 'control'
+design %<>%
+  mutate(reut.50 = ifelse(grepl('Reut_50uM', rownames(.)), 1, 0)) %>%
+  mutate(reut.100 = ifelse(grepl('Reut_100uM', rownames(.)), 1, 0)) %>%
+  mutate(dmf.25 = ifelse(grepl('DMF_25', rownames(.)), 1, 0)) %>%
+  mutate(dmf.100 = ifelse(grepl('DMF_100', rownames(.)), 1, 0)) %>%
+  mutate(reut = ifelse(grepl('Reut', rownames(.)), 1, 0)) %>%
+  mutate(dmf = ifelse(grepl('DMF', rownames(.)), 1, 0)) %>%
+  as.matrix() 
+
+# fit linear model
+fit <- lmFit(p.limma, design = design)
+
+# Choose comparisons
+contr <- makeContrasts(control - reut.50, levels = colnames(coef(fit)))
+contr
+
+# fit comparisons
+tmp <- contrasts.fit(fit, contr)
+tmp <- eBayes(tmp)
+
+# Pull p values
+top.table <- topTable(tmp, sort.by = "P", n = Inf)
+
+# merge for comparison
+top.table <- merge(top.table, p, by.x = 0, by.y = "Uniprot ID")
+
+
+```
+
+# Heatmap using given significance
+```{r}
+
+# Load data
+reut100 <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_proteome_100umReut_vs_Control.txt', data.table = F)
+values <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_proteome_protein_quant.txt', data.table = F)
+
+# select for significant genes
+reut100 %<>% mutate(`q-Value` = as.numeric(`q-Value`)) %>%
+  dplyr::filter(`q-Value` < .1) %>%
+  dplyr::select(`Uniprot ID`)
+values %<>% set_rownames(values$`Uniprot ID`) %>%
+  dplyr::filter(`Uniprot ID` %in% reut100$`Uniprot ID`) %>%
+  dplyr::select(Control_1:Reut_100uM_3)
+
+# Scale
+temp<- colnames(values)
+values %<>% apply(., MARGIN = 1, FUN=scale) %>%
+  t() %>%
+  set_colnames(temp)
+Heatmap(values,
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = T,
+        cluster_columns = F,
+        row_km = 2,
+        row_km_repeats = 100,
+        column_order = 1:15,
+        column_split = factor(
+          rep(c('Control', '25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin'), each=3),
+          levels = c('Control', '25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin')),
+        width = unit(6, "cm"),
+        height = unit(7, "cm"),
+        column_title_gp = gpar(fontsize=6),
+        column_title_rot = 90,
+        heatmap_legend_param = list(title = "Z-score")
+        )
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
