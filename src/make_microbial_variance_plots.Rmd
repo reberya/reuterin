@@ -1,0 +1,373 @@
+---
+title: "make_microbial_pca"
+author: "Ryan Rebernick"
+date: "6/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(ggfortify)
+library(cowplot)
+
+
+```
+
+
+# Plot PCA
+
+## All samples
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_earlyLate.0.15.pca.axes')
+loadings <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_earlyLate.0.15.pca.loadings')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+pca <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis10) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('PCA', 1:10))) 
+
+# Plot all samples
+ggplot(pca, aes(x=PCA1, y=PCA2, color=Genotype, shape = Time)) +
+  geom_point(size=3) + 
+  xlab(paste0('PCA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCA2 (', round(loadings$loading[2], 1), '%)')) +
+  theme_cowplot(12) +
+  theme(axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+```
+
+## Early time point only
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_early.0.15.pca.axes')
+loadings <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_early.0.15.pca.loadings')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+pca <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis10) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('PCA', 1:10))) %>%
+  dplyr::filter(Time == 'Early')
+
+# plot
+pca %>% ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3) + 
+  xlab(paste0('PCA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Early timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+```
+
+
+## Late time point only
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_late.0.15.pca.axes')
+loadings <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_late.0.15.pca.loadings')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+pca <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis10) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('PCA', 1:10))) %>%
+  dplyr::filter(Time == 'Late')
+
+# plot
+pca %>% ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3) +
+  xlab(paste0('PCA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+# plot with sample names
+pca %>% ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3, shape = NA) +
+  geom_text(label = pca$sample) +
+  xlab(paste0('PCA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+# remove sample 516.1S
+pca %>%
+  dplyr::filter(sample != '516.1S') %>%
+  ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3) +
+  xlab(paste0('PCA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+
+```
+
+
+
+
+
+
+
+# Plot PCoA
+
+
+## All samples
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.axes')
+loadings <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.loadings')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+pca <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis10) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('PCA', 1:10))) 
+
+# Plot all samples
+ggplot(pca, aes(x=PCA1, y=PCA2, color=Genotype, shape = Time)) +
+  geom_point(size=3) + 
+  xlab(paste0('PCOA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCOA2 (', round(loadings$loading[2], 1), '%)')) +
+  theme_cowplot(12) +
+  theme(axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+```
+
+## Early time point only
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.axes')
+loadings <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.loadings')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+pca <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis10) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('PCA', 1:10))) %>%
+  dplyr::filter(Time == 'Early')
+
+# plot
+pca %>% ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3) + 
+  xlab(paste0('PCOA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCOA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Early timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+```
+
+## Late time point only
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.axes')
+loadings <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.loadings')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+pca <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis10) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('PCA', 1:10))) %>%
+  dplyr::filter(Time == 'Late')
+
+# plot
+pca %>% ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3) +
+  xlab(paste0('PCAO1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCAO2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+# plot with sample names
+pca %>% ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3, shape = NA) +
+  geom_text(label = pca$sample) +
+  xlab(paste0('PCOA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCOA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+# remove sample 516.1S
+pca %>%
+  dplyr::filter(sample != '516.1S') %>%
+  ggplot(., aes(x=PCA1, y=PCA2, color=Genotype)) +
+  geom_point(size=3) +
+  xlab(paste0('PCOA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCOA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+
+```
+
+
+
+# Plot NMDS
+
+
+## All samples
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.nmds.axes')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+nmds <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis2) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('NMDS', 1:2))) 
+
+# Plot all samples
+nmds %>% ggplot(., aes(x=NMDS1, y=NMDS2, color=Genotype)) +
+  geom_point(size=3) + 
+  xlab('NMDS1') +
+  ylab('NMDS2') +
+  ggtitle(label = 'Early timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+```
+
+## Early time point only
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.nmds.axes')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+nmds <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis2) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('NMDS', 1:2))) %>%
+  dplyr::filter(Time == 'Early')
+
+# plot
+nmds %>% ggplot(., aes(x=NMDS1, y=NMDS2, color=Genotype)) +
+  geom_point(size=3) + 
+  xlab('NMDS1') +
+  ylab('NMDS2') +
+  ggtitle(label = 'Early timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+```
+
+## Late time point only
+```{r}
+
+# load data from mothur
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.nmds.axes')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+nmds <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis2) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('NMDS', 1:2))) %>%
+  dplyr::filter(Time == 'Late')
+
+# plot
+nmds %>% ggplot(., aes(x=NMDS1, y=NMDS2, color=Genotype)) +
+  geom_point(size=3) + 
+  xlab('NMDS1') +
+  ylab('NMDS2') +
+  ggtitle(label = 'Early timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+# plot with sample names
+nmds %>% ggplot(., aes(x=NMDS1, y=NMDS2, color=Genotype)) +
+  geom_point(size=3, shape = NA) +
+  geom_text(label = nmds$sample) +
+  xlab('NMDS1') +
+  ylab('NMDS2') +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+# remove sample 516.1S
+nmds %>%
+  dplyr::filter(sample != '516.1S') %>%
+  ggplot(., aes(x=NMDS1, y=NMDS2, color=Genotype)) +
+  geom_point(size=3) +
+  xlab('NMDS1') +
+  ylab('NMDS2') +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+
+```
+
+
+
+
