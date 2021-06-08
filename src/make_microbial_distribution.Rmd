@@ -1,0 +1,523 @@
+---
+title: "make_microbial_distribution"
+author: "Ryan Rebernick"
+date: "6/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(ggfortify)
+library(cowplot)
+library(tidyr)
+library(RColorBrewer)
+library(ggpubr)
+
+```
+
+
+# Taxon level 4
+
+##  Plot distribution of microbiome sampples by genus
+
+### Create data frame for plotting
+516.1 (3ko) and 513.3 (2ko) did not have enough reads (less than DNA control). 516.1S(3ko) did not cluster with other 3KO mice
+```{r}
+
+# select desired taxonomy level and samples 
+reads <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_A.tax.summary', data.table = F) %>%
+  dplyr::filter(taxlevel == 4) %>%
+  dplyr::select(-c('DNA.ExtractionCtrl', 'WaterNeg', 'MockZymoPos', '516.1', '513.3', '516.1S'))
+
+#  recalculate total and filter based upon the new total
+reads %<>% 
+  rowwise() %>%
+  dplyr::mutate(total = sum(c_across(`513.1`:`519.3S`))) %>%
+  dplyr::filter(total > 222)
+
+# transpose for plotting
+reads %<>%
+  as.data.frame() %>%
+  set_rownames(reads$taxon) %>%
+  dplyr::select(`513.1`:`519.3S`) %>%
+  t() %>%
+  as.data.frame()
+
+# merge with genotype
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt', data.table = F)
+toPlot <- merge(geno, reads, by.x = 'V1', by.y=0)
+
+# merge with timepoint
+time <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-TIMEPOINT.txt', data.table = F)
+toPlot <- merge(time, toPlot, by.x = 'V1', by.y='V1')
+colnames(toPlot)[1:3] <- c('Sample', 'Time', 'Genotype') 
+
+# wide to long
+toPlot %<>% gather(., Bacteria, Count, Bifidobacteriales:Mycoplasmatales, factor_key = T)
+
+
+```
+
+
+### Plot
+
+#### All samples split by genotype
+```{r}
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(. ~ Genotype, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'All samples') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+#### All samples split by genotype and time
+```{r}
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(Genotype ~ Time, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'All samples') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+#### Early samples split by genotype
+```{r}
+
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  dplyr::filter(Time == 'Early') %>%
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(. ~ Genotype, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'Early timepoints') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+#### Late samples split by genotype
+```{r}
+
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  dplyr::filter(Time == 'Late') %>%
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(. ~ Genotype, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+
+
+
+
+
+
+
+
+
+# Taxon level 3
+
+##  Plot distribution of microbiome sampples by genus
+
+### Create data frame for plotting
+516.1 and 513.3 did not have enough reads (less than DNA control). 516.1S did not cluster with other 3KO mice
+```{r}
+
+# select desired taxonomy level and samples 
+reads <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_A.tax.summary', data.table = F) %>%
+  dplyr::filter(taxlevel == 3) %>%
+  dplyr::select(-c('DNA.ExtractionCtrl', 'WaterNeg', 'MockZymoPos', '516.1', '513.3', '516.1S'))
+
+#  recalculate total and filter based upon the new total
+reads %<>% 
+  rowwise() %>%
+  dplyr::mutate(total = sum(c_across(`513.1`:`519.3S`))) %>%
+  dplyr::filter(total > 222)
+
+# transpose for plotting
+reads %<>%
+  as.data.frame() %>%
+  set_rownames(reads$taxon) %>%
+  dplyr::select(`513.1`:`519.3S`) %>%
+  t() %>%
+  as.data.frame()
+
+# merge with genotype
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt', data.table = F)
+toPlot <- merge(geno, reads, by.x = 'V1', by.y=0)
+
+# merge with timepoint
+time <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-TIMEPOINT.txt', data.table = F)
+toPlot <- merge(time, toPlot, by.x = 'V1', by.y='V1')
+colnames(toPlot)[1:3] <- c('Sample', 'Time', 'Genotype') 
+
+# wide to long
+toPlot %<>% gather(., Bacteria, Count, Actinobacteria:Mollicutes, factor_key = T)
+
+```
+
+
+### Plot
+
+#### All samples split by genotype
+```{r}
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(. ~ Genotype, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'All samples') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+#### All samples split by genotype and time
+```{r}
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(Genotype ~ Time, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'All samples') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+#### Early samples split by genotype
+```{r}
+
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  dplyr::filter(Time == 'Early') %>%
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(. ~ Genotype, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'Early timepoints') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+#### Late samples split by genotype
+```{r}
+
+# color palette
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+colorCount <- length(unique(toPlot$Bacteria))
+
+toPlot %>% 
+  dplyr::filter(Time == 'Late') %>%
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(. ~ Genotype, scales = 'free') + 
+  xlab(NULL) +
+  ylab('Proportion') +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12)) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Lactobacillus Reuteri
+
+## Create data frame for plotting
+```{r}
+
+# select desired taxonomy level and samples 
+reads <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_A.tax.summary', data.table = F) %>%
+  dplyr::filter(taxon %in% c('Lactobacillus', 'Root')) %>%
+  dplyr::select(-c('DNA.ExtractionCtrl', 'WaterNeg', 'MockZymoPos', '516.1', '513.3', '516.1S', 'taxlevel','rankID', 'daughterlevels', 'total'))
+
+# transpose and calculate relative levels of lactobacillus
+reads %<>%
+  set_rownames(reads$taxon) %>%
+  dplyr::select(-taxon) %>%
+  t() %>%
+  as.data.frame() %>%
+  dplyr::mutate(relativeLacto = Lactobacillus/Root)
+
+# merge with genotype
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt', data.table = F)
+toPlot <- merge(geno, reads, by.x = 'V1', by.y=0)
+
+# merge with timepoint
+time <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-TIMEPOINT.txt', data.table = F)
+toPlot <- merge(time, toPlot, by.x = 'V1', by.y='V1')
+colnames(toPlot)[1:3] <- c('Sample', 'Time', 'Genotype') 
+
+```
+
+## plot lactobacillus levels
+
+### All samples 
+#### Each sample plotted individually
+```{r}
+
+toPlot %<>% arrange(Time, Genotype, relativeLacto)
+toPlot$ord <- factor(1:length(toPlot$Sample))
+
+
+  ggplot(toPlot, aes(x=ord, y=relativeLacto, fill = Genotype)) +
+  geom_col()+
+  theme_cowplot(12) + 
+  facet_wrap(~ Time, scales = 'free_x', drop = T) +
+  scale_x_discrete(labels = toPlot$Sample) +  
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12))
+
+```
+
+#### Sample averages
+```{r}
+
+toPlot %>%
+  ggplot(., aes(x=Time, y=relativeLacto, fill = Time)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) + 
+  theme_cowplot(12) + 
+  ggtitle('All samples') +
+  xlab(NULL) +
+  ylab('Relative abundance of Lactobacillus') +
+  stat_compare_means(method = "t.test", paired = F) +
+  theme(axis.text.x = element_text(angle = 0),
+        title =  element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16),
+        axis.text = element_text(size=12),
+        legend.position = 'none')
+
+```
+
+
+
+### Cre negative
+#### Each sample plotted individually
+```{r}
+
+toPlot %>%
+  dplyr::filter(Genotype == "CRE_NEG") %>%
+  ggplot(., aes(x=Sample, y=relativeLacto)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  theme_cowplot(12) + 
+  facet_grid(. ~ Time, scales = 'free') +
+  ggtitle(label = 'Cre negative') +
+  xlab(NULL) +
+  ylab('Relative amount of Lactobacillus') +
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12))
+
+```
+
+#### Sample averages
+```{r}
+
+toPlot %>%
+  dplyr::filter(Genotype == 'CRE_NEG') %>%
+  ggplot(., aes(x=Time, y=relativeLacto, fill = Time)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) + 
+  theme_cowplot(12) + 
+  ggtitle('Cre negative') +
+  xlab(NULL) +
+  ylab('Relative abundance of Lactobacillus') +
+  stat_compare_means(method = "t.test", paired = F) +
+  theme(axis.text.x = element_text(angle = 0),
+        title =  element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16),
+        axis.text = element_text(size=12),
+        legend.position = 'none')
+
+```
+
+
+### Double mut
+#### Each sample plotted individually
+```{r}
+
+toPlot %>%
+  dplyr::filter(Genotype == "DoubleMut") %>%
+  ggplot(., aes(x=Sample, y=relativeLacto)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  theme_cowplot(12) + 
+  facet_grid(. ~ Time, scales = 'free') +
+  ggtitle(label = 'Double Mutant') +
+  xlab(NULL) +
+  ylab('Relative amount of Lactobacillus') +
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12))
+
+```
+
+#### Sample averages
+```{r}
+
+toPlot %>%
+  dplyr::filter(Genotype == 'DoubleMut') %>%
+  ggplot(., aes(x=Time, y=relativeLacto, fill = Time)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) + 
+  theme_cowplot(12) + 
+  ggtitle('Double mutant') +
+  xlab(NULL) +
+  ylab('Relative abundance of Lactobacillus') +
+  stat_compare_means(method = "t.test", paired = F) +
+  theme(axis.text.x = element_text(angle = 0),
+        title =  element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16),
+        axis.text = element_text(size=12),
+        legend.position = 'none')
+
+```
+
+
+### Triple mut
+#### Each sample plotted individually
+```{r}
+
+toPlot %>%
+  dplyr::filter(Genotype == "TripleMut") %>%
+  ggplot(., aes(x=Sample, y=relativeLacto)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  theme_cowplot(12) + 
+  facet_grid(. ~ Time, scales = 'free') +
+  ggtitle(label = 'Triple Mutant') +
+  xlab(NULL) +
+  ylab('Relative amount of Lactobacillus') +
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12))
+
+```
+
+#### Sample averages
+```{r}
+
+toPlot %>%
+  dplyr::filter(Genotype == 'TripleMut') %>%
+  ggplot(., aes(x=Time, y=relativeLacto, fill = Time)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_jitter(shape=16, position=position_jitter(0.2)) + 
+  theme_cowplot(12) + 
+  ggtitle('Triple mutant') +
+  xlab(NULL) +
+  ylab('Relative abundance of Lactobacillus') +
+  stat_compare_means(method = "t.test", paired = F) +
+  theme(axis.text.x = element_text(angle = 0),
+        title =  element_text(size=16),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16),
+        axis.text = element_text(size=12),
+        legend.position = 'none')
+
+```
+
