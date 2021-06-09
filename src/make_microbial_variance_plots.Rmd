@@ -63,7 +63,6 @@ ggplot(pca, aes(x=PCA1, y=PCA2, color=Cage, shape = Time)) +
   theme(axis.title.x = element_text(size=20),
         axis.title.y = element_text(size=20))
 
-
 ```
 
 ## Early time point only
@@ -161,6 +160,7 @@ pca %>%
 
 
 ## All samples
+### All samples by genotype
 ```{r}
 
 # load data from mothur
@@ -185,6 +185,20 @@ ggplot(pcoa, aes(x=PCoA1, y=PCoA2, color=Genotype, shape = Time)) +
         axis.title.y = element_text(size=20))
 
 ```
+
+### all samples by cage
+```{r}
+
+ggplot(pcoa, aes(x=PCoA1, y=PCoA2, color=Cage, shape = Time)) +
+  geom_point(size=3) + 
+  xlab(paste0('PCoA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCoA2 (', round(loadings$loading[2], 1), '%)')) +
+  theme_cowplot(12) +
+  theme(axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+```
+
 
 ## Early time point only
 ```{r}
@@ -216,6 +230,7 @@ pcoa %>% ggplot(., aes(x=PCoA1, y=PCoA2, color=Genotype)) +
 ```
 
 ## Late time point only
+### by genotype
 ```{r}
 
 # load data from mothur
@@ -245,7 +260,7 @@ pcoa %>% ggplot(., aes(x=PCoA1, y=PCoA2, color=Genotype)) +
 # plot with sample names
 pcoa %>% ggplot(., aes(x=PCoA1, y=PCoA2, color=Genotype)) +
   geom_point(size=3, shape = NA) +
-  geom_text(label = pca$sample) +
+  geom_text(label = pcoa$sample) +
   xlab(paste0('PCoA1 (', round(loadings$loading[1], 1), '%)')) +
   ylab(paste0('PCoA2 (', round(loadings$loading[2], 1), '%)')) +
   ggtitle(label = 'Late timepoints') +
@@ -267,6 +282,23 @@ pcoa %>%
         axis.title.x = element_text(size=20),
         axis.title.y = element_text(size=20))
 
+
+```
+
+### by cage
+```{r}
+
+pcoa %>%
+  dplyr::filter(sample != '516.1S') %>%
+  ggplot(., aes(x=PCoA1, y=PCoA2, color=Cage)) +
+  geom_point(size=3) +
+  xlab(paste0('PCoA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCoA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
 
 ```
 
@@ -294,7 +326,7 @@ nmds %>% ggplot(., aes(x=NMDS1, y=NMDS2, color=Genotype)) +
   geom_point(size=3) + 
   xlab('NMDS1') +
   ylab('NMDS2') +
-  ggtitle(label = 'Early timepoints') +
+  ggtitle(label = 'All timepoints') +
   theme_cowplot(12) +
   theme(title =  element_text(size=20),
         axis.title.x = element_text(size=20),
@@ -350,7 +382,7 @@ nmds %>% ggplot(., aes(x=NMDS1, y=NMDS2, color=Genotype)) +
   geom_point(size=3) + 
   xlab('NMDS1') +
   ylab('NMDS2') +
-  ggtitle(label = 'Early timepoints') +
+  ggtitle(label = 'Late timepoints') +
   theme_cowplot(12) +
   theme(title =  element_text(size=20),
         axis.title.x = element_text(size=20),

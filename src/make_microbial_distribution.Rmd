@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Load libraries
-```{r}
+```{r, message=F}
 
 library(dplyr)
 library(magrittr)
