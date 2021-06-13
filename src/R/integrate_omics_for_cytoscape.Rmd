@@ -1,9 +1,17 @@
 ---
-title: "1_prepareForCytoscape"
+title: "integrate_omics_for_cytoscape"
 author: "Ryan Rebernick"
 date: "2/26/2021"
 output: html_document
 ---
+
+# Description:
+This script prepares data from:
+- Human cell line metabolomics (integrated to gene/protein level using metaboanalyst/metabridge)
+- Mouse Cysteine proteomics x2 rounds (highest CRmax value from either experiment is taken for each gene)
+- mouse RNA-seq
+Human cell line data is converted to mouse genes. It seeks to combine the files looking for overlapping genes that are differentially expressed, and tied to changes in cysteine proteomics and metabolomics. The output of this file is a dataframe that can be imported into cytoscape and made into a network figure. Ultimately decided to forgo cysteine proteomics data from the figure.
+
 
 # Load packages
 ```{r, warning=F, message=F}
@@ -217,7 +225,7 @@ export$target <- T
 # Rename compounds for cytoscape viewing
 export %<>%
   mutate(compound = ifelse(compound == 'OXIDIZED GLUATHIONE', 'GSSG', compound)) %>%
-  mutate(compound = ifelse(compound == 'PHOSPHO-ENOL-PYRUVATE', 'PEP', compound)) %>%
+  mutate(compound = ifelse(compound == 'PHOSPHO-ENOL-PYRUVATE', 'PEP', compound))
   
 
 # save info keeping only unique nodes
@@ -278,7 +286,7 @@ dev.off()
 ```
 
 # Subset cytoscape export for only top hits
-Choosing those with top # DE genes or any with a cysteine proteomics hit
+Choosing those with top # DE genes or any with a cysteine proteomics hit. Ultimately chose to eliminate cysteine proteomics data. 
 ```{r}
 
 # keep the top x compounds and those with cystine proteomics hits
@@ -289,6 +297,9 @@ keep <- c(as.character(plot$compound[1:4]), as.character(plot[plot$cp >0,]$compo
 export.sub <- export %>%
   dplyr::filter(compound %in% keep) %>%
   dplyr::filter(de != 0 | cpBoolean ==T)
+
+# Remove cysteine proteomics
+export.sub %<>% dplyr::filter(!is.na(logFC))
 
 # save info keeping only unique nodes
 write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset.txt', sep = '\t', quote = F, row.names = F)
