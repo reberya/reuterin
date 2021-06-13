@@ -1,0 +1,79 @@
+---
+title: "examine_contributing_species_PCoA"
+author: "Ryan Rebernick"
+date: "6/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Description:
+This looks at the output of the corr.axes function of mothur (https://mothur.org/wiki/corr.axes/#:~:text=Default%20settings-,The%20corr.,temperature%2C%20weight%2C%20etc.)) in order to determine which OTUs are responsible for shifting the samples along the 2 axes. We determine this by measuring the correlation of the relative abundance of each OTU with the two axes using the corr.axes function. Used on PCoA plots from mothur. 
+
+# Load packages
+```{r, warning=F}
+library(dplyr)
+library(magrittr)
+library(data.table)
+library(ggfortify)
+library(cowplot)
+
+
+```
+
+
+# Examine differences for PCoA1/PCoA2
+
+## View PCoA plot
+
+### Late time point only
+```{r}
+
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.axes')
+loadings <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_otu.thetayc.0.03.lt.ave.pcoa.loadings')
+geno <- fread('~/Desktop/projects/reuterin/data/mothur/SAMPLE-GENOTYPE.txt')
+
+# combine
+pcoa <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
+  dplyr::mutate(time = ifelse(stringr::str_detect(group, 'S'), 'Late', 'Early')) %>%
+  dplyr::mutate(cage = gsub('\\..*', '', group)) %>%
+  dplyr::select(group, V2, time, cage, axis1:axis10) %>%
+  set_colnames(c('sample', 'Genotype', 'Time', 'Cage', paste0('PCoA', 1:10))) %>%
+  dplyr::filter(Time == 'Late')
+
+# remove sample 516.1S
+pcoa %>%
+  dplyr::filter(sample != '516.1S') %>%
+  ggplot(., aes(x=PCoA1, y=PCoA2, color=Genotype)) +
+  geom_point(size=3) +
+  xlab(paste0('PCoA1 (', round(loadings$loading[1], 1), '%)')) +
+  ylab(paste0('PCoA2 (', round(loadings$loading[2], 1), '%)')) +
+  ggtitle(label = 'Late timepoints') +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20))
+
+
+```
+
+
+
+# Combine files showing what OTUs are and which OTUs contribute to PCoA axes for late stage samples
+
+## Combine files
+```{r}
+
+otu <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_A.pick.opti_mcc.0.03.cons.taxonomy', data.table = F)
+axes <- fread('~/Desktop/projects/reuterin/data/mothur/reuterin_late_outRem.spearman.corr.axes', data.table = F) %>%
+  merge(., otu, by = 'OTU') %>%
+  set_colnames(c('OTU', 'pcoa1', 'pcoa1_p', 'pcoa2', 'pcoa2_p', 'length', 'size', 'taxonomy'))
+axes %<>% arrange(pcoa1_p, -size)
+
+write.table(axes, '~/Desktop/projects/reuterin/int/pcoa_late_contributing_otus.txt', row.names = F, sep = '\t', quote = F)
+
+
+```
+
