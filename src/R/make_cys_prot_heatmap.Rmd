@@ -1,0 +1,157 @@
+---
+title: "2_edaCysProteomics"
+author: "Ryan Rebernick"
+date: "4/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Description:
+Takes experiment 2 cysteine proteomics data and makes a heatmap of the top hits.
+
+# Load packages
+```{r, warning=F, message=F}
+
+library('plyr')
+library('dplyr')
+library('magrittr')
+library('data.table')
+
+library(cowplot)
+library(ggplot2)
+library(ggfortify)
+library(matrixStats)
+library(ComplexHeatmap)
+library(circlize)
+
+
+```
+
+
+
+# Make heatmap of top 100 100um reuterin hits
+
+## prepare data frame
+```{r}
+
+## experiment 2
+p2 <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_DMF_Reut_Cys_SLC-ABPP.txt', data.table = F)
+
+# select needed cols
+cyst <- p2[,c(2,6,23,29,31, 10:21)]
+colnames(cyst)[1:3] <- c('gene', 'gene_site', 'avg_cntrl', 'cr_DMF_100', 'cr_Reut_100')
+
+# Change zero values to matrix min
+sub <- as.matrix(cyst[,6:17])
+vals <- unlist(sub)
+vals <- vals[vals > 0]
+sub[sub < 0.1] <- min(vals)
+cyst[,6:17] <- sub
+
+# There are duplicate measurements of gene_sites. To remove dups, determine the maximum sd from all groups and select the duplciate with the lowest maximum sd.
+## compute group SDs
+cyst %<>% 
+  mutate(DMF_25uM_sd = rowSds(as.matrix(cyst[,6:8]))) %>% 
+  mutate(DMF_100uM_sd = rowSds(as.matrix(cyst[,9:11]))) %>% 
+  mutate(Reut_50uM_sd = rowSds(as.matrix(cyst[,12:14]))) %>% 
+  mutate(Reut_100uM_sd = rowSds(as.matrix(cyst[,15:17])))
+## select max sd and arrange by max sd
+cyst %<>%
+  mutate(maxsd = rowMaxs(as.matrix(cyst[,18:21]))) %>%
+  arrange(maxsd) %>%
+  dplyr::select(gene:Reut_100uM_3)
+## remove duplicates based on sd ordering
+cyst <- cyst[!duplicated(cyst$gene_site),]
+
+# Compute CRs for each replicate
+cyst[,6:17] <- cyst$avg_cntrl/cyst[,6:17]
+
+# Look at difference between DMF and reuterin
+cyst$dif <- cyst$`CR 100 Reut`-cyst$`CR 100 DMF`
+cyst %<>% dplyr::filter(dif > 0.2)
+
+# Filter for those CRs greater than the mean +3SD
+mean2sd <- mean(cyst$`CR 100 Reut`) + 2*sd(cyst$`CR 100 Reut`)
+cyst %<>% dplyr::filter(`CR 100 Reut` >= mean2sd) %>%
+  arrange(-`CR 100 Reut`)
+
+# remove 25/50
+values <- cyst %>% dplyr::select(DMF_100uM_1:DMF_100uM_3, Reut_100uM_1:Reut_100uM_3)
+
+# color function
+col_fun = colorRamp2(c( 0, 1.5, 2), c("white", 'orange', "red"))
+
+
+```
+
+## Plot
+### with labels
+```{r}
+
+h <- Heatmap(values,
+        col = col_fun,
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = F,
+        cluster_columns = F,
+        row_km_repeats = 100,
+        # column_order = 1:15,
+        # column_split = factor(
+        #   rep(c('25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin'), each=3),
+        #   levels = c('25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin')),
+        column_split = factor(
+          rep(c('100um DMF', '100um Reuterin'), each=3),
+          levels = c('100um DMF','100um Reuterin')),
+        width = unit(3, "cm"),
+        height = unit(7, "cm"),
+        column_title_gp = gpar(fontsize=6),
+        column_title_rot = 90,
+        heatmap_legend_param = list(title = "CR"))
+
+h
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/cyst_prot_exp2_top100_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 6, width = 4)
+h
+dev.off()
+
+
+```
+
+### without labels
+```{r}
+
+h <- Heatmap(values,
+        col = col_fun,
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = F,
+        cluster_columns = F,
+        row_km_repeats = 100,
+        # column_order = 1:15,
+        # column_split = factor(
+        #   rep(c('25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin'), each=3),
+        #   levels = c('25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin')),
+        column_split = factor(
+          rep(c('100um DMF', '100um Reuterin'), each=3),
+          levels = c('100um DMF','100um Reuterin')),
+        width = unit(3, "cm"),
+        height = unit(7, "cm"),
+        column_title_gp = gpar(fontsize=6),
+        column_title_rot = 90,
+        heatmap_legend_param = list(title = NULL),
+        column_title = NULL)
+
+h
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/cyst_prot_exp2_top100_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 6, width = 4)
+h
+dev.off()
+
+
+```
+
