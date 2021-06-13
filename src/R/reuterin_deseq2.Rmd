@@ -512,7 +512,7 @@ h <- Heatmap(t(toplot),
         heatmap_legend_param = list(title = "Z-score"))
 
 h
-pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_heatmap_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
 h
 dev.off()
 
@@ -538,7 +538,7 @@ h <- Heatmap(t(toplot),
         row_title = NULL)
 
 h
-pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_heatmap_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
 h
 dev.off()
 
