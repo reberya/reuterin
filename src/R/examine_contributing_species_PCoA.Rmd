@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Description:
 This looks at the output of the corr.axes function of mothur (https://mothur.org/wiki/corr.axes/#:~:text=Default%20settings-,The%20corr.,temperature%2C%20weight%2C%20etc.)) in order to determine which OTUs are responsible for shifting the samples along the 2 axes. We determine this by measuring the correlation of the relative abundance of each OTU with the two axes using the corr.axes function. Used on PCoA plots from mothur. 
+This script merges the output of corr.axes with the OTU taxonomy infomration from mothur so we know the identities of the OTUs impacting the axes most. 
 
 # Load packages
 ```{r, warning=F}
