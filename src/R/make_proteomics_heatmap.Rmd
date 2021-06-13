@@ -1,0 +1,124 @@
+---
+title: "make_proteomics_heatmap"
+author: "Ryan Rebernick"
+date: "4/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Description:
+Makes a heatmap from the reuterin proteomics data. 
+
+# Load packages
+```{r, message=FALSE, warning=FALSE}
+library('plyr')
+library('dplyr')
+library('magrittr')
+library('data.table')
+
+library(limma)
+library(ComplexHeatmap)
+
+```
+
+
+
+# Heatmap using given significance
+
+## Prepare data
+```{r}
+
+# Load data
+reut100 <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_proteome_100umReut_vs_Control.txt', data.table = F)
+values <- fread('~/Desktop/projects/reuterin/data/UMichigan_Hannah_HCT_proteome_protein_quant.txt', data.table = F)
+
+# select for significant genes
+reut100 %<>% mutate(`q-Value` = as.numeric(`q-Value`)) %>%
+  dplyr::filter(`q-Value` < .1) %>%
+  dplyr::select(`Uniprot ID`)
+values %<>% set_rownames(values$`Uniprot ID`) %>%
+  dplyr::filter(`Uniprot ID` %in% reut100$`Uniprot ID`) %>%
+  dplyr::select(Control_1:Reut_100uM_3)
+
+# Scale
+temp<- colnames(values)
+values %<>% apply(., MARGIN = 1, FUN=scale) %>%
+  t() %>%
+  set_colnames(temp)
+
+
+```
+
+## Plot heatmap
+
+### with labels
+```{r}
+
+h <- Heatmap(values,
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = T,
+        cluster_columns = F,
+        row_km = 2,
+        row_km_repeats = 100,
+        column_order = 1:15,
+        column_split = factor(
+          rep(c('Control', '25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin'), each=3),
+          levels = c('Control', '25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin')),
+        width = unit(6, "cm"),
+        height = unit(7, "cm"),
+        column_title_gp = gpar(fontsize=6),
+        column_title_rot = 90,
+        heatmap_legend_param = list(title = "Z-score"))
+
+h
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_proteomics_heatmap_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+h
+dev.off()
+
+```
+
+
+### Without labels
+```{r}
+
+h <- Heatmap(values,
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = T,
+        cluster_columns = F,
+        row_km = 2,
+        row_km_repeats = 100,
+        column_order = 1:15,
+        column_split = factor(
+          rep(c('Control', '25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin'), each=3),
+          levels = c('Control', '25um DMF', '100um DMF', '50um Reuterin', '100um Reuterin')),
+        width = unit(6, "cm"),
+        height = unit(7, "cm"),
+        column_title_gp = gpar(fontsize=6),
+        column_title_rot = 90,
+        heatmap_legend_param = list(title = NULL),
+        column_title = NULL,
+        row_title = NULL)
+
+h
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_proteomics_heatmap_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+h
+dev.off()
+
+```
+
+
+
+
+
+
+
+
