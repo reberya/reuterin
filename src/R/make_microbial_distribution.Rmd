@@ -75,7 +75,8 @@ toPlot %<>% gather(., Bacteria, Count, Bifidobacteriales:Mycoplasmatales, factor
 getPalette = colorRampPalette(brewer.pal(9, "Set1"))
 colorCount <- length(unique(toPlot$Bacteria))
 
-toPlot %>% 
+# with labels
+t <- toPlot %>% 
   ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
   geom_bar(position="fill", stat="identity") +
   facet_grid(. ~ Genotype, scales = 'free') + 
@@ -88,6 +89,37 @@ toPlot %>%
         axis.title.x = element_text(size=12),
         axis.title.y = element_text(size=12)) + 
   scale_fill_manual(values=getPalette(colorCount))
+
+t
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/16s_allSamples_barplot_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+t
+dev.off()
+
+
+# WITHOUT labels
+t <- toPlot %>% 
+  ggplot(., aes(fill=Bacteria, y=Count, x=Sample)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(. ~ Genotype, scales = 'free', labeller = ) + 
+  xlab(NULL) +
+  ylab(NULL) +
+  ggtitle(label = NULL) +
+  theme_cowplot(12) + 
+  theme(axis.text.x = element_text(angle = 90),
+        title =  element_text(size=12),
+        axis.title.x = element_blank(),
+        axis.text.x.bottom = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y.left = element_blank(),
+        strip.text.x = element_blank(),
+        legend.text = element_blank(),
+        legend.title = element_blank()) + 
+  scale_fill_manual(values=getPalette(colorCount))
+
+t
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/16s_allSamples_barplot_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+t
+dev.off()
 
 ```
 
