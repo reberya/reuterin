@@ -197,11 +197,13 @@ Add in RNA-seq data and export file for use with cytoscape. This export contains
 ```{r}
 
 # load rna
-rna <- fread('~/Desktop/projects/reuterin/data/ReutvsCtrl.txt')
+#rna <- fread('~/Desktop/projects/reuterin/data/ReutvsCtrl.txt')
+rna <- fread('~/Desktop/projects/reuterin/out/deseq2/reuterin_deseq2.txt')
+
 
 # get DEGs and select needed cols
-rna %<>% dplyr::filter(FDR < 0.05) %>%
-  dplyr::select(genes, logFC)
+rna %<>% dplyr::filter(padj < 0.05) %>%
+  dplyr::select(geneName, log2FoldChange)
 
 # select cols
 colnames(rna) <- c('mgi', 'logFC')
@@ -292,7 +294,7 @@ Choosing those with top # DE genes.
 # keep the top x compounds and those with cystine proteomics hits
 plot %<>% arrange(-numGenes)
 ## pull compund names
-keep <- plot %>% dplyr::filter(numGenes >=4) %>% dplyr::select(compound) %>% unlist() %>% as.character()
+keep <- plot %>% dplyr::filter(numGenes >=3) %>% dplyr::select(compound) %>% unlist() %>% as.character()
 ## get compounds of interest and select only the genes that are DE
 export.sub <- export %>%
   dplyr::filter(compound %in% keep) %>%
