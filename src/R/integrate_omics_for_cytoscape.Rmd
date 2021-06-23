@@ -286,20 +286,17 @@ dev.off()
 ```
 
 # Subset cytoscape export for only top hits
-Choosing those with top # DE genes or any with a cysteine proteomics hit. Ultimately chose to eliminate cysteine proteomics data. 
+Choosing those with top # DE genes.
 ```{r}
 
 # keep the top x compounds and those with cystine proteomics hits
 plot %<>% arrange(-numGenes)
 ## pull compund names
-keep <- c(as.character(plot$compound[1:4]), as.character(plot[plot$cp >0,]$compound))
-## get compounds of interest and select only the genes that have proteomics hit or are DE
+keep <- plot %>% dplyr::filter(numGenes >=4) %>% dplyr::select(compound) %>% unlist() %>% as.character()
+## get compounds of interest and select only the genes that are DE
 export.sub <- export %>%
   dplyr::filter(compound %in% keep) %>%
-  dplyr::filter(de != 0 | cpBoolean ==T)
-
-# Remove cysteine proteomics
-export.sub %<>% dplyr::filter(!is.na(logFC))
+  dplyr::filter(de != 0)
 
 # save info keeping only unique nodes
 write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset.txt', sep = '\t', quote = F, row.names = F)
