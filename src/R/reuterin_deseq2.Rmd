@@ -451,6 +451,8 @@ reuterin.cts <- merge(reuterin, raw, by.x = 'gene', by.y=0)
 
 # save output
 write.table(reuterin, '~/Desktop/projects/reuterin/out/deseq2/reuterin_deseq2.txt', row.names = F, col.names = T, sep = '\t', quote = F)
+write.table(reuterin.cts, '~/Desktop/projects/reuterin/int/deseq2/reuterin_deseq2_wcounts.txt', row.names = F, col.names = T, sep = '\t', quote = F)
+
 
 ```
 
