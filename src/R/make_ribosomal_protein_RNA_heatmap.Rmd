@@ -1,0 +1,126 @@
+---
+title: "make_ribosomal_protein_RNA_heatmap"
+author: "Ryan Rebernick"
+date: "6/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Description:
+Make heatmap from RNA-seq for the following genes: RPL6, RPL7, RPL7A, RPL8, RPL15, RPL26, RPL27, RPL29, RPL35. RPL38
+s121113 is the bad sample from RNA seq analysis and is excluded. 
+
+
+
+# Import Packages
+```{r, include=F}
+
+library('plyr')
+library('dplyr')
+library('magrittr')
+library('data.table')
+
+library('ComplexHeatmap')
+library(ggfortify)
+library(cowplot)
+
+
+```
+
+
+
+# Load data
+```{r}
+
+rna <- fread('~/Desktop/projects/reuterin/int/deseq2/reuterin_deseq2_wcounts.txt', data.table = F)
+
+```
+
+
+
+# Select genes and plot heatmap
+
+
+## Select data
+```{r}
+
+genes <- c('Rpl6', 'Rpl7', 'Rpl7a', 'Rpl8', 'Rpl15', 'Rpl26', 'Rpl27', 'Rpl29', 'Rpl35', 'Rpl38')
+
+toPlot <- rna %>%
+  dplyr::filter(geneName %in% genes) 
+toPlot %<>%
+  set_rownames(toPlot$geneName) %>%
+  dplyr::select(s121105:s121112) %>%
+  t() %>%
+  scale(center = T, scale = T) %>%
+  t()
+
+
+```
+
+
+## Plot 
+
+### With labels
+```{r}
+
+# Flip
+h <- Heatmap(t(toPlot),
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = F,
+        cluster_columns = T,
+        column_km = 2,
+        column_km_repeats = 100,
+        row_order = 1:5,
+        row_split = factor(
+          c(rep('Control', 3), rep('Reuterin', 2))),
+        width = unit(7, "cm"),
+        height = unit(2.5, "cm"),
+        row_title_gp = gpar(fontsize=6),
+        column_title = NULL,
+        heatmap_legend_param = list(title = "Z-score"))
+
+h
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_ribosomal_RNA_heatmap_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+h
+dev.off()
+
+```
+
+### w/o labels
+```{r}
+
+# Flip w/o labels
+h <- Heatmap(t(toPlot),
+        show_row_dend = F,
+        show_column_dend = F,
+        show_row_names = F,
+        show_column_names = F,
+        cluster_rows = F,
+        cluster_columns = T,
+        column_km = 2,
+        column_km_repeats = 100,
+        row_order = 1:5,
+        row_split = factor(
+          c(rep('Control', 3), rep('Reuterin', 2))),
+        width = unit(7, "cm"),
+        height = unit(2.5, "cm"),
+        row_title_gp = gpar(fontsize=6),
+        column_title = NULL,
+        heatmap_legend_param = list(title = NULL),
+        row_title = NULL)
+
+h
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_ribosomal_RNA_heatmap_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+h
+dev.off()
+
+```
+
