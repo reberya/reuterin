@@ -307,3 +307,22 @@ write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset.
 ```
 
 
+# Subset for top hits and those with cysteine proteomics hits
+```{r}
+
+# pull compound names
+keep <- plot %>% dplyr::filter(numGenes >=3 | cp == T) %>% dplyr::select(compound) %>% unlist() %>% as.character()
+
+## get compounds of interest and select only the genes that are DE
+export.sub <- export %>%
+  dplyr::filter(compound %in% keep) %>%
+  dplyr::filter(de != 0 | cpBoolean ==T)
+
+# save info keeping only unique nodes
+write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset_withCP.txt', sep = '\t', quote = F, row.names = F)
+
+
+```
+
+
+
