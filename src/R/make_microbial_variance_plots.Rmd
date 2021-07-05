@@ -201,6 +201,9 @@ ggplot(pcoa, aes(x=PCoA1, y=PCoA2, color=Cage, shape = Time)) +
 
 
 ## Early time point only
+
+### By genotype
+#### With labels
 ```{r}
 
 # load data from mothur
@@ -217,20 +220,56 @@ pcoa <- merge(axes, geno, by.x = 'group', by.y='V1') %>%
   dplyr::filter(Time == 'Early')
 
 # plot
-pcoa %>% ggplot(., aes(x=PCoA1, y=PCoA2, color=Genotype)) +
-  geom_point(size=3) + 
+p <- pcoa %>% ggplot(., aes(x=PCoA1, y=PCoA2, color=Genotype)) +
+  geom_point(size=6) + 
   xlab(paste0('PCoA1 (', round(loadings$loading[1], 1), '%)')) +
   ylab(paste0('PCoA2 (', round(loadings$loading[2], 1), '%)')) +
   ggtitle(label = 'Early timepoints') +
   theme_cowplot(12) +
   theme(title =  element_text(size=20),
         axis.title.x = element_text(size=20),
-        axis.title.y = element_text(size=20))
+        axis.title.y = element_text(size=20)) +
+  scale_color_viridis(discrete = T, end = 0.92)
+p
+
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/pcoa_early_outrem_viridis_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 4)
+p
+dev.off()
 
 ```
 
+#### No labels
+```{r}
+
+# late out removed - blank
+p <- pcoa %>%
+  ggplot(., aes(x=PCoA1, y=PCoA2, color=Genotype)) +
+  geom_point(size=6) +
+  xlab(NULL) +
+  ylab(NULL) +
+  ggtitle(NULL) +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20),
+        legend.text = element_blank(),
+        legend.title = element_blank(),
+        axis.text = element_blank()) +
+  scale_color_viridis(discrete = T, end = 0.92)
+p
+
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/pcoa_early_outrem_cage_noLab_viridis_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 4)
+p
+dev.off()
+
+
+```
+
+
+
 ## Late time point only
 ### by genotype
+#### With labels
 ```{r}
 
 # load data from mothur
@@ -316,19 +355,53 @@ dev.off()
 
 
 ### by cage
+#### With labels
 ```{r}
 
-pcoa %>%
+p <- pcoa %>%
   dplyr::filter(sample != '516.1S') %>%
   ggplot(., aes(x=PCoA1, y=PCoA2, color=Cage)) +
-  geom_point(size=3) +
+  geom_point(size=6) +
   xlab(paste0('PCoA1 (', round(loadings$loading[1], 1), '%)')) +
   ylab(paste0('PCoA2 (', round(loadings$loading[2], 1), '%)')) +
   ggtitle(label = 'Late timepoints') +
   theme_cowplot(12) +
   theme(title =  element_text(size=20),
         axis.title.x = element_text(size=20),
-        axis.title.y = element_text(size=20))
+        axis.title.y = element_text(size=20)) +
+  scale_color_viridis(discrete = T, end = 0.92)
+p
+
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/pcoa_late_outrem_cage_viridis_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 4)
+p
+dev.off()
+
+```
+
+#### Without labels
+```{r}
+
+# late out removed - blank
+p <- pcoa %>%
+  dplyr::filter(sample != '516.1S') %>%
+  ggplot(., aes(x=PCoA1, y=PCoA2, color=Cage)) +
+  geom_point(size=6) +
+  xlab(NULL) +
+  ylab(NULL) +
+  ggtitle(NULL) +
+  theme_cowplot(12) +
+  theme(title =  element_text(size=20),
+        axis.title.x = element_text(size=20),
+        axis.title.y = element_text(size=20),
+        legend.text = element_blank(),
+        legend.title = element_blank(),
+        axis.text = element_blank()) +
+  scale_color_viridis(discrete = T, end = 0.92)
+p
+
+pdf(paste0('~/Desktop/projects/reuterin/out/figures/pcoa_late_outrem_cage_noLab_viridis_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 4)
+p
+dev.off()
 
 ```
 
