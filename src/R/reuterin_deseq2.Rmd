@@ -402,8 +402,36 @@ plotPCA(vsd) + theme_cowplot(12)
 #PCA - change labellign
 plotPCA(vsd, intgroup = c('sample', 'condition')) + theme_cowplot(12)
 
+```
+
+#### Save pca plot
+```{r}
+
+# with labels
+pdf(paste0("~/Desktop/projects/reuterin/out/figures/rna_seq_pca_wo_s121113_",format(Sys.time(), "%Y-%m-%d"), ".pdf"),height = 4, width = 4)
+plotPCA(vsd) + 
+  geom_point(size=4) +
+  theme_cowplot(12) +
+  scale_color_viridis(discrete = T, end = 0.5) +
+  ylim(c(-7,3))
+dev.off()
+
+# without labels
+pdf(paste0("~/Desktop/projects/reuterin/out/figures/rna_seq_pca_wo_s121113_noLab_",format(Sys.time(), "%Y-%m-%d"), ".pdf"),height = 3, width = 3)
+plotPCA(vsd) + 
+  geom_point(size=4) +
+  theme_cowplot(12) +
+  scale_color_viridis(discrete = T, end = 0.5) +
+  ylim(c(-7,3)) +
+  xlab(NULL) + 
+  ylab(NULL) +
+  theme(legend.text = element_blank(),
+      legend.title = element_blank(),
+      axis.text = element_blank())
+dev.off()
 
 ```
+
 
 
 ### Run differential expression
@@ -450,8 +478,8 @@ head(reuterin)
 reuterin.cts <- merge(reuterin, raw, by.x = 'gene', by.y=0)
 
 # save output
-write.table(reuterin, '~/Desktop/projects/reuterin/out/deseq2/reuterin_deseq2.txt', row.names = F, col.names = T, sep = '\t', quote = F)
-write.table(reuterin.cts, '~/Desktop/projects/reuterin/int/deseq2/reuterin_deseq2_wcounts.txt', row.names = F, col.names = T, sep = '\t', quote = F)
+#write.table(reuterin, '~/Desktop/projects/reuterin/out/deseq2/reuterin_deseq2.txt', row.names = F, col.names = T, sep = '\t', quote = F)
+#write.table(reuterin.cts, '~/Desktop/projects/reuterin/int/deseq2/reuterin_deseq2_wcounts.txt', row.names = F, col.names = T, sep = '\t', quote = F)
 
 
 ```
@@ -514,7 +542,7 @@ h <- Heatmap(t(toplot),
         heatmap_legend_param = list(title = "Z-score"))
 
 h
-pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_heatmap_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+#pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_heatmap_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
 h
 dev.off()
 
@@ -540,7 +568,7 @@ h <- Heatmap(t(toplot),
         row_title = NULL)
 
 h
-pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_heatmap_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
+#pdf(paste0('~/Desktop/projects/reuterin/out/figures/reuterin_degs_heatmap_noLab_', format(Sys.time(), "%Y-%m-%d"), '.pdf'), height = 4, width = 6)
 h
 dev.off()
 
