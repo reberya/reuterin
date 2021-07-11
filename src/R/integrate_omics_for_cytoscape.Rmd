@@ -231,7 +231,7 @@ export %<>%
   
 
 # save info keeping only unique nodes
-write.table(export, '~/Desktop/projects/reuterin/int/metabolite-gene.txt', sep = '\t', quote = F, row.names = F)
+#write.table(export, '~/Desktop/projects/reuterin/int/metabolite-gene.txt', sep = '\t', quote = F, row.names = F)
 
 
 ```
@@ -239,6 +239,8 @@ write.table(export, '~/Desktop/projects/reuterin/int/metabolite-gene.txt', sep =
 
 # Barplot of metabolite hits
 Use this barplot to justify why the network was further narrowed down. Will show the number of DE genes as well as those with cysteine proteomics hits. 
+
+## with labels
 ```{r, fig.height=6, fig.width=5}
 
 # create seperate data frame
@@ -267,7 +269,6 @@ plot <- plot %>%
   filter(numGenes > 0)
   
 # Plot dotplot
-
 g <- ggplot(plot, aes(numGenes, compound)) +
   geom_point(aes(size=proportion, col=cp)) +
   scale_color_manual(values=c("grey", "#00A08A")) +
@@ -279,13 +280,36 @@ g <- ggplot(plot, aes(numGenes, compound)) +
   theme_minimal_grid(12)
 g
 
-pdf('~/Desktop/projects/reuterin/int/omicsIntegration_dotplot.pdf', height = 4, width = 5)
+pdf(paste0("~/Desktop/projects/reuterin/out/figures/omics_integration_dotplot_",format(Sys.time(), "%Y-%m-%d"), ".pdf"),height = 4, width = 5)
 g
 dev.off()
 
-  
+```
+
+## without labels
+```{r}
+
+# Plot dotplot
+g <- ggplot(plot, aes(numGenes, compound)) +
+  geom_point(aes(size=proportion, col=cp)) +
+  scale_color_manual(values=c("grey", "#00A08A")) +
+  ggtitle(NULL) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(size="Proportion", colour= "CP hit") + 
+  ylab(NULL) +
+  xlab(NULL) +
+  theme_minimal_grid(12) + 
+  theme(axis.text = element_blank(),
+        legend.text = element_blank(),
+        legend.title = element_blank())
+g
+
+pdf(paste0("~/Desktop/projects/reuterin/out/figures/omics_integration_dotplot_noLab_",format(Sys.time(), "%Y-%m-%d"), ".pdf"),height = 4, width = 2)
+g
+dev.off()
 
 ```
+
 
 # Subset cytoscape export for only top hits
 Choosing those with top # DE genes.
@@ -301,7 +325,7 @@ export.sub <- export %>%
   dplyr::filter(de != 0)
 
 # save info keeping only unique nodes
-write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset.txt', sep = '\t', quote = F, row.names = F)
+#write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset.txt', sep = '\t', quote = F, row.names = F)
 
 
 ```
@@ -319,7 +343,7 @@ export.sub <- export %>%
   dplyr::filter(de != 0 | cpBoolean ==T)
 
 # save info keeping only unique nodes
-write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset_withCP.txt', sep = '\t', quote = F, row.names = F)
+#write.table(export.sub, '~/Desktop/projects/reuterin/int/metabolite-gene_subset_withCP.txt', sep = '\t', quote = F, row.names = F)
 
 
 ```
